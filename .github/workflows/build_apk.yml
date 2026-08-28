@@ -1,9 +1,4 @@
 
-root = Path("/mnt/data/tani-modern-v10.2")
-if root.exists():
-    import shutil
-    shutil.rmtree(root)
-(root/"www").mkdir(parents=True)
 index_html = r'''<!doctype html>
 <html lang="id">
 <head>
