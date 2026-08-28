@@ -1,1 +1,151 @@
+from pathlib import Path
+import zipfile, textwrap, os, json
+
+root = Path("/mnt/data/tani-modern-v10.2")
+if root.exists():
+    import shutil
+    shutil.rmtree(root)
+(root/"www").mkdir(parents=True)
+(root/".github/workflows").mkdir(parents=True)
+
+index_html = r'''<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TANI MODERN v10.2</title>
+<style>
+:root{--g:#08783f;--g2:#0e9650;--bg:#f4faf6;--ink:#173526;--muted:#718078;--card:#fff;--line:#dce9e1;--red:#df3e3e}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select{font:inherit}button{cursor:pointer;border:0}.hidden{display:none!important}
+#app{min-height:100vh}.screen{min-height:100vh;padding-bottom:88px}.auth{background:linear-gradient(160deg,#05683a,#15964d);padding:60px 18px 30px;display:flex;align-items:center;justify-content:center}.auth-card{background:#fff;border-radius:30px;padding:28px 22px;width:min(100%,520px);box-shadow:0 15px 50px #003b1d44}.logo{text-align:center;font-size:34px;font-weight:900;color:var(--g);margin:4px}.tag{text-align:center;color:var(--muted);margin:0 0 22px;font-size:18px}.tabs{display:flex;background:#edf4f0;border-radius:18px;padding:5px;margin-bottom:22px}.tabs button{flex:1;padding:14px;border-radius:14px;background:transparent;color:#65766e;font-weight:800}.tabs button.active{background:#fff;color:var(--g);box-shadow:0 5px 18px #1b5d3620}
+.field{margin:14px 0}.field label{display:block;font-weight:800;margin-bottom:7px}.field input,.field select{width:100%;padding:15px;border:2px solid var(--line);border-radius:14px;outline:none;background:#fff}.field input:focus{border-color:#77c79a}.primary{width:100%;background:var(--g);color:#fff;padding:16px;border-radius:15px;font-weight:900;margin-top:8px}.secondary{background:#edf5ef;color:var(--g);padding:12px 16px;border-radius:12px;font-weight:800}.danger{background:#fff0f0;color:var(--red);padding:12px 16px;border-radius:12px;font-weight:800}
+.top{position:sticky;top:0;z-index:5;background:#fff;padding:18px 18px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.top h2{margin:0;font-size:21px}.top small{color:var(--muted)}.iconbtn{width:42px;height:42px;border-radius:13px;background:#eef7f1;color:var(--g);font-size:20px}
+.content{padding:18px;max-width:900px;margin:auto}.hero{background:linear-gradient(135deg,#08783f,#18a455);color:#fff;border-radius:22px;padding:22px;margin-bottom:16px}.hero h1{margin:0 0 6px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 4px 18px #1b5d3610}.card h3{margin:0 0 8px}.muted{color:var(--muted)}.metric{font-size:25px;font-weight:900;color:var(--g)}.list{display:flex;flex-direction:column;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px;border:1px solid var(--line);border-radius:14px;background:#fff}.nav{position:fixed;z-index:10;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding:8px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px #174d3020}.nav button{background:transparent;color:#77847e;padding:8px 2px;font-size:11px;font-weight:800}.nav button span{display:block;font-size:21px;margin-bottom:3px}.nav button.active{color:var(--g)}
+.modal{position:fixed;inset:0;background:#001b0b77;z-index:30;display:flex;align-items:flex-end;justify-content:center}.sheet{background:#fff;width:min(100%,650px);border-radius:26px 26px 0 0;padding:22px;max-height:90vh;overflow:auto}.close{float:right;background:#eef4f0;border-radius:50%;width:36px;height:36px}.toast{position:fixed;z-index:50;bottom:100px;left:50%;transform:translateX(-50%);background:#173526;color:#fff;padding:12px 18px;border-radius:14px;box-shadow:0 8px 25px #0003}
+.scanbox{height:280px;border-radius:22px;background:linear-gradient(135deg,#164e2f,#0a8b49);display:flex;align-items:center;justify-content:center;color:#fff;text-align:center;margin-bottom:15px}.scanbox .target{border:3px solid #fff;width:180px;height:180px;border-radius:28px;display:flex;align-items:center;justify-content:center}
+@media(min-width:700px){.grid{grid-template-columns:repeat(4,1fr)}.nav{left:50%;transform:translateX(-50%);width:min(100%,850px);border-radius:20px 20px 0 0}.content{padding-bottom:110px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const state={page:localStorage.getItem('tm_auth')?'home':'auth',authTab:'login',user:JSON.parse(localStorage.getItem('tm_user')||'null'),
+garden:JSON.parse(localStorage.getItem('tm_garden')||'null')||[
+{id:1,name:'Cabai Merah',area:'500 m²',age:'26 HST',progress:80,status:'Aktif'},
+{id:2,name:'Tomat',area:'300 m²',age:'25 HST',progress:65,status:'Aktif'},
+{id:3,name:'Sawi Hijau',area:'180 m²',age:'20 HST',progress:48,status:'Aktif'}]};
+const pages={home:'Beranda',garden:'Kebun Saya',scan:'Scan Tanaman',stats:'Statistik',profile:'Profil'};
+function save(){localStorage.setItem('tm_garden',JSON.stringify(state.garden))}
+function toast(t){const x=document.createElement('div');x.className='toast';x.textContent=t;document.body.appendChild(x);setTimeout(()=>x.remove(),1800)}
+function app(){document.getElementById('app').innerHTML=state.page==='auth'?auth():main();bind()}
+function auth(){return `<div class="screen auth"><div class="auth-card"><div class="logo">🌱 TANI MODERN</div><p class="tag">Bertani lebih mudah, hasil lebih maksimal</p>
+<div class="tabs"><button class="${state.authTab==='login'?'active':''}" data-auth="login">MASUK</button><button class="${state.authTab==='register'?'active':''}" data-auth="register">DAFTAR</button></div>
+${state.authTab==='login'?`<form id="loginForm"><div class="field"><label>Email atau Nomor HP</label><input id="loginId" required placeholder="Masukkan email / nomor HP"></div><div class="field"><label>Kata sandi</label><input id="loginPass" required type="password" placeholder="Masukkan kata sandi"></div><button class="primary">MASUK</button></form><p class="muted" style="text-align:center;margin-top:22px">Belum punya akun? <b>Gunakan tab DAFTAR.</b></p>`:
+`<form id="regForm"><div class="field"><label>Nama Lengkap</label><input id="regName" required></div><div class="field"><label>Nomor HP / WhatsApp</label><input id="regPhone" required></div><div class="field"><label>Email</label><input id="regEmail" type="email" required></div><div class="field"><label>Kata sandi</label><input id="regPass" type="password" minlength="6" required></div><div class="field"><label>Konfirmasi kata sandi</label><input id="regPass2" type="password" required></div><button class="primary">DAFTAR</button></form><p class="muted" style="text-align:center;margin-top:18px">Sudah punya akun? <b>Kembali ke MASUK.</b></p>`}</div></div>`}
+function main(){return `<div class="screen"><header class="top"><div><h2>${pages[state.page]||'TANI MODERN'}</h2><small>🌱 Smart Farming</small></div><button class="iconbtn" data-action="notif">🔔</button></header><main class="content">${pageContent()}</main>${nav()}</div>`}
+function pageContent(){
+if(state.page==='home')return `<section class="hero"><h1>Halo, ${state.user?.name||'Petani'}! 👋</h1><p>Semangat bertani hari ini.</p></section>
+<div class="grid3"><div class="card"><div class="muted">Luas Kebun</div><div class="metric">2.500 m²</div></div><div class="card"><div class="muted">Komoditas</div><div class="metric">${state.garden.length}</div></div><div class="card"><div class="muted">Prediksi Panen</div><div class="metric">42 hari</div></div></div>
+<h3>Cuaca & Lokasi</h3><div class="card"><b>📍 Bogor, Jawa Barat</b><div class="metric">26°C ☀️</div><p class="muted">Kelembapan 78% · Curah hujan 0 mm</p></div>
+<h3>Aktivitas Hari Ini</h3><div class="list"><div class="row" data-go="scan">📷 <span>Periksa tanaman</span> <b>›</b></div><div class="row" data-go="garden">🌱 <span>Kelola kebun</span> <b>›</b></div><div class="row" data-go="stats">📊 <span>Lihat statistik</span> <b>›</b></div></div>`;
+if(state.page==='garden')return `<div style="display:flex;justify-content:space-between;align-items:center"><div><h3 style="margin-bottom:2px">Semua Kebun</h3><span class="muted">${state.garden.length} komoditas</span></div><button class="primary" style="width:auto;margin:0" data-action="addGarden">＋ Tambah</button></div><div class="list" style="margin-top:15px">${state.garden.map(g=>`<div class="card"><div class="row" style="border:0;padding:0"><div><h3>${g.name}</h3><span class="muted">${g.area} · ${g.age}</span></div><button class="danger" data-delete="${g.id}">Hapus</button></div><div style="margin-top:14px;background:#e7f0ea;border-radius:10px;height:9px"><div style="width:${g.progress}%;background:var(--g);height:100%;border-radius:10px"></div></div><small>${g.progress}% pertumbuhan · ${g.status}</small></div>`).join('')}</div>`;
+if(state.page==='scan')return `<div class="scanbox"><div><div class="target">📷</div><p>Arahkan kamera ke daun atau bagian tanaman</p></div></div><div class="grid"><button class="primary" data-action="camera">📷 Buka Kamera</button><button class="secondary" data-action="gallery">🖼️ Pilih Galeri</button></div><div class="card" style="margin-top:15px"><h3>AI Vision</h3><p class="muted">Ambil foto untuk mendapatkan diagnosis contoh.</p></div>`;
+if(state.page==='stats')return `<div class="grid"><div class="card"><div class="muted">Produksi</div><div class="metric">1.850 kg</div></div><div class="card"><div class="muted">Laba Bersih</div><div class="metric">Rp 8,75 jt</div></div></div><div class="card" style="margin-top:14px"><h3>Prediksi Panen</h3><p>Cabai Merah</p><div class="metric">70–90 hari</div><p class="muted">Estimasi hasil 1.250–1.600 kg</p><button class="secondary" data-action="calendar">📅 Lihat Kalender Budidaya</button></div><div class="card" style="margin-top:14px"><h3>Keuangan / HPP</h3><p class="muted">Pendapatan Rp 12.450.000 · Pengeluaran Rp 3.700.000</p><button class="secondary" data-action="finance">Buka Keuangan</button></div>`;
+return `<div class="card"><h3>👤 ${state.user?.name||'Petani'}</h3><p class="muted">${state.user?.email||state.user?.phone||''}</p></div><div class="list" style="margin-top:14px">
+<div class="row" data-action="profileInfo">👤 <span>Profil Saya</span><b>›</b></div><div class="row" data-go="garden">🌱 <span>Kebun Saya</span><b>›</b></div><div class="row" data-action="history">🕘 <span>Riwayat Scan</span><b>›</b></div><div class="row" data-action="calendar">📅 <span>Kalender Budidaya</span><b>›</b></div><div class="row" data-action="finance">💰 <span>Keuangan / HPP</span><b>›</b></div><div class="row" data-action="settings">⚙️ <span>Pengaturan</span><b>›</b></div><div class="row" data-action="help">❓ <span>Bantuan & Panduan</span><b>›</b></div><button class="danger" style="width:100%" data-action="logout">Keluar / Logout</button></div>`;
+}
+function nav(){return `<nav class="nav">${[['home','⌂','Beranda'],['garden','▦','Kebun'],['scan','◉','Scan'],['stats','◌','Statistik'],['profile','♙','Profil']].map(x=>`<button class="${state.page===x[0]?'active':''}" data-go="${x[0]}"><span>${x[1]}</span>${x[2]}</button>`).join('')}</nav>`}
+function bind(){
+document.querySelectorAll('[data-auth]').forEach(b=>b.onclick=()=>{state.authTab=b.dataset.auth;app()});
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{state.page=b.dataset.go;app()});
+const lf=document.getElementById('loginForm');if(lf)lf.onsubmit=e=>{e.preventDefault();const id=loginId.value.trim(),p=loginPass.value; if(p.length<3)return toast('Kata sandi terlalu pendek');state.user=JSON.parse(localStorage.getItem('tm_user')||'null')||{name:'Petani',email:id};localStorage.setItem('tm_auth','1');app();toast('Berhasil masuk')};
+const rf=document.getElementById('regForm');if(rf)rf.onsubmit=e=>{e.preventDefault();if(regPass.value!==regPass2.value)return toast('Konfirmasi kata sandi berbeda');state.user={name:regName.value,phone:regPhone.value,email:regEmail.value};localStorage.setItem('tm_user',JSON.stringify(state.user));localStorage.setItem('tm_auth','1');state.page='home';app();toast('Akun berhasil dibuat')};
+document.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>{state.garden=state.garden.filter(x=>x.id!=b.dataset.delete);save();app();toast('Kebun dihapus')});
+document.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>action(b.dataset.action));
+}
+function action(a){
+if(a==='logout'){localStorage.removeItem('tm_auth');state.page='auth';state.authTab='login';app();return}
+if(a==='addGarden')return modal(`<h2>Tambah Kebun</h2><div class="field"><label>Nama Komoditas</label><input id="mName" placeholder="Contoh: Cabai Merah"></div><div class="field"><label>Luas Kebun</label><input id="mArea" placeholder="500 m²"></div><button class="primary" id="saveGarden">SIMPAN KEBUN</button>`);
+if(a==='camera'||a==='gallery')return modal(`<h2>${a==='camera'?'Kamera':'Galeri'}</h2><p class="muted">${a==='camera'?'Di APK Capacitor, tombol ini dapat dihubungkan ke kamera native.':'Pilih foto tanaman dari perangkat.'}</p><input type="file" accept="image/*" ${a==='camera'?'capture="environment"':''} id="photo"><button class="primary" id="analyze">ANALISIS TANAMAN</button>`);
+if(a==='history')return modal(`<h2>Riwayat Scan</h2><div class="list"><div class="row">🌶️ Cabai Merah <span class="muted">Bercak Daun · 82%</span></div><div class="row">🍅 Tomat <span class="muted">Layu Fusarium · 75%</span></div><div class="row">🌿 Sawi Hijau <span class="muted">Sehat · 96%</span></div></div>`);
+if(a==='calendar')return modal(`<h2>Kalender Budidaya</h2><div class="list"><div class="row">01 Agu · Semai Benih <b>Selesai</b></div><div class="row">15 Agu · Pindah Tanam <b>Selesai</b></div><div class="row">22 Agu · Pemupukan Dasar <b>Selesai</b></div><div class="row">29 Agu · Penyemprotan <b>Hari ini</b></div><div class="row">05 Sep · Pengendalian Hama <b>Akan datang</b></div></div>`);
+if(a==='finance')return modal(`<h2>Keuangan / HPP</h2><div class="card"><div class="muted">Laba Bersih</div><div class="metric">Rp 8.750.000</div><hr><p>Pendapatan: Rp 12.450.000</p><p>Pengeluaran: Rp 3.700.000</p></div>`);
+if(a==='profileInfo')return modal(`<h2>Profil Saya</h2><p><b>Nama:</b> ${state.user?.name||'-'}</p><p><b>Email:</b> ${state.user?.email||'-'}</p><p><b>No. HP:</b> ${state.user?.phone||'-'}</p>`);
+if(a==='settings')return modal(`<h2>Pengaturan</h2><div class="row">Notifikasi <input type="checkbox" checked></div><div class="row" style="margin-top:10px">Mode gelap <input type="checkbox" onchange="toast('Mode gelap demo')"></div>`);
+if(a==='help')return modal(`<h2>Bantuan</h2><p>Gunakan menu bawah untuk berpindah fitur. Semua tombol utama v10.2 sudah memiliki aksi.</p><button class="primary" onclick="toast('Panduan dibuka')">MULAI PANDUAN</button>`);
+if(a==='notif')toast('Tidak ada notifikasi baru');
+}
+function modal(html){const m=document.createElement('div');m.className='modal';m.innerHTML=`<div class="sheet"><button class="close" id="close">×</button>${html}</div>`;document.body.appendChild(m);m.querySelector('#close').onclick=()=>m.remove();const sg=m.querySelector('#saveGarden');if(sg)sg.onclick=()=>{const n=m.querySelector('#mName').value.trim();if(!n)return toast('Nama komoditas wajib diisi');state.garden.push({id:Date.now(),name:n,area:m.querySelector('#mArea').value||'0 m²',age:'0 HST',progress:5,status:'Baru'});save();m.remove();app();toast('Kebun ditambahkan')};const an=m.querySelector('#analyze');if(an)an.onclick=()=>{m.remove();modal('<h2>Hasil Diagnosis</h2><div class="card"><h3>Cabai Merah</h3><p>Kemungkinan masalah: <b>Bercak Daun</b></p><p>Confidence: <b>82%</b></p><button class="primary" onclick="toast(\\'Disimpan ke riwayat\\')">SIMPAN KE RIWAYAT</button></div>')}}
+app();
+</script></body></html>'''
+
+package_json = {
+"name":"tani-modern","version":"1.0.10","private":True,
+"description":"TANI MODERN v10.2 - Smart Farming Capacitor Android",
+"scripts":{"build:web":"node scripts/check-web.js","android:add":"npx cap add android","android:sync":"npx cap sync android","android:open":"npx cap open android","android:run":"npx cap run android"},
+"dependencies":{"@capacitor/android":"^7.0.0","@capacitor/camera":"^7.0.0","@capacitor/geolocation":"^7.0.0","@capacitor/network":"^7.0.0","@capacitor/preferences":"^7.0.0","@capacitor/core":"^7.0.0"},
+"devDependencies":{"@capacitor/cli":"^7.0.0","typescript":"^5.9.3"}}
+(root/"www/index.html").write_text(index_html,encoding="utf-8")
+(root/"package.json").write_text(json.dumps(package_json,indent=2),encoding="utf-8")
+(root/"capacitor.config.ts").write_text("""import type { CapacitorConfig } from '@capacitor/cli';
+const config: CapacitorConfig = { appId:'id.tanimodern.app', appName:'TANI MODERN', webDir:'www', bundledWebRuntime:false };
+export default config;
+""",encoding="utf-8")
+(root/"scripts").mkdir(exist_ok=True)
+(root/"scripts/check-web.js").write_text("""const fs=require('fs'); if(!fs.existsSync('www/index.html')){console.error('www/index.html tidak ditemukan');process.exit(1)} console.log('TANI MODERN web OK');""",encoding="utf-8")
+(root/".gitignore").write_text("node_modules/\nandroid/\n.DS_Store\n",encoding="utf-8")
+(root/"README.md").write_text("""# TANI MODERN v10.2
+Project Capacitor Android dengan UI mobile dan tombol utama aktif.
+
+## Build lokal
+npm install
+npx cap add android
+npx cap sync android
+npx cap open android
+
+Di Android Studio: Build > Generate Signed App Bundle / APK.
+
+## GitHub Actions
+Workflow `build-apk.yml` akan memasang Node/Java/Android SDK, membuat project Android, sync Capacitor, lalu menghasilkan `app-debug.apk`.
+""",encoding="utf-8")
+workflow="""name: Build TANI MODERN APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20, cache: npm}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - name: Install dependencies
+        run: npm install
+      - name: Validate web
+        run: npm run build:web
+      - name: Add Android
+        run: npx cap add android
+      - name: Sync Capacitor
+        run: npx cap sync android
+      - name: Build debug APK
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tani-modern-v10.2-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+"""
+(root/".github/workflows/build-apk.yml").write_text(workflow,encoding="utf-8")
+
+zip_path=Path("/mnt/data/tani-modern-v10.2-semua-fitur-klik.zip")
+if zip_path.exists(): zip_path.unlink()
+with zipfile.ZipFile(zip_path,"w",zipfile.ZIP_DEFLATED) as z:
+    for p in root.rglob("*"):
+        if p.is_file(): z.write(p,p.relative_to(root.parent))
+print(f"ZIP siap: {zip_path}")
+print("Isi utama:", "www/index.html, package.json, capacitor.config.ts, .github/workflows/build-apk.yml")
 
