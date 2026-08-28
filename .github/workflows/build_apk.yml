@@ -6,8 +6,6 @@ if root.exists():
     import shutil
     shutil.rmtree(root)
 (root/"www").mkdir(parents=True)
-(root/".github/workflows").mkdir(parents=True)
-
 index_html = r'''<!doctype html>
 <html lang="id">
 <head>
