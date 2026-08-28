@@ -1,5 +1,3 @@
-from pathlib import Path
-import zipfile, textwrap, os, json
 
 root = Path("/mnt/data/tani-modern-v10.2")
 if root.exists():
